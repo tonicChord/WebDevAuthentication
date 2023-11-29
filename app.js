@@ -1,8 +1,12 @@
 //jshint esversion:6
+require('dotenv').config()
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const pg = require("pg");
+const CryptoJS = require("crypto-js");
+
 
 const app = express();
 
@@ -23,7 +27,7 @@ const userSchema = {
     email: String,
     password: String
 };
-
+const secret = process.env.SECRET;
 app.get("/", function (req, res) {
     res.render("home");
 });
@@ -37,11 +41,13 @@ app.get("/register", function (req, res) {
 app.post("/register", async function (req, res) {
     const newUser = req.body.username;
     const newUserPassword = req.body.password;
+    const ciphertext = CryptoJS.AES.encrypt(newUserPassword, secret).toString();
+    console.log(ciphertext);
 
     try {
         await db.query(
             "INSERT INTO users (user_name, password) VALUES ($1, $2)",
-            [newUser, newUserPassword]
+            [newUser, ciphertext]
         );
         res.render("secrets");
     } catch (err) {
@@ -58,7 +64,9 @@ app.post("/login", async function (req, res) {
         let item = result.rows;
         //console.log(result);
         console.log(item);
-        if (item[0].password === password) {
+        const bytes = CryptoJS.AES.decrypt(item[0].password, secret);
+        const originalText = bytes.toString(CryptoJS.enc.Utf8);
+        if (originalText === password) {
             res.render("secrets");
 
         }
